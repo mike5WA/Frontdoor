@@ -9,6 +9,7 @@
 # 03/6/19
 # Added routine to check for valid sensor data before writing to csv files
 # Added formatting of data prior to writing to csv files
+# 1/11/20 This line inputed Visual Studio via ssh
 
 import Adafruit_DHT
 import Adafruit_BMP.BMP085 as BMP085
@@ -41,7 +42,7 @@ if exists is False:
 # Limit records depending upon needs & frequency of readings via dashboard
 # As readings only recorded to Weather_Data.csv every 5 minutes 1 day =288 records
 row_min = 295
-row_max = 900
+row_max = 600
 my_row =1
 
 # Set DHT sensor model & GPIO pin
@@ -58,13 +59,14 @@ def sensorReads():
   humidity, temperature = Adafruit_DHT.read_retry(sensor_DHT, pin)
 # Get pressure reading from BMP sensor
   my_hpa = float(sensor_BMP.read_pressure()/100)
-# Define and set variables
+# Define, set & format variables
   global Temp
-  Temp = float("{0:0.1f}".format(temperature))
+  Temp = float("{0:4.1f}".format(temperature))
   global Humidity
-  Humidity = float("{0:0.2f}".format(humidity))
+  Humidity = float("{0:0.1f}".format(humidity))
+#  Humidity = int(float(humidity)("{0:3d}".format(Humidity))
   global Hpa
-  Hpa = float("{0:0.1f}".format(my_hpa))
+  Hpa = float("{0:6.1f}".format(my_hpa))
   return (Temp, Humidity, Hpa)
 
 #-------------------------------------------------------------------
@@ -140,25 +142,29 @@ if exists is False:
     writer = csv.DictWriter(log, fieldnames=fieldnames)
     writer.writeheader()
     log.write("{0},{1},{2},{3},{4}\n".format(strftime("%Y-%m-%d %H:%M:%S"), str(Temp), str(Humidity), str(Hpa), str(epochTime)))
-    print ('T{0:0.1f},H{1:0.0f},P{2:.1f}'.format(Temp, Humidity, Hpa))
+    print ('T{0:4.1f},H{1:3.0f},P{2:6.1f}'.format(Temp, Humidity, Hpa))
 else:
 # File exists so write readings to file
   with open(readings, "a") as log:
     log.write("{0},{1},{2},{3},{4}\n".format(strftime("%Y-%m-%d %H:%M:%S"), str(Temp), str(Humidity), str(Hpa), str(epochTime)))
-    print ('T{0:0.1f},H{1:0.0f},P{2:.1f}'.format(Temp, Humidity, Hpa))
+    print ('T{0:4.1f},H{1:3.0f},P{2:6.1f}'.format(Temp, Humidity, Hpa))
 
 # Check to see if we have 6 records (header + 5 data)
 with open(readings, "r") as log:
   reader = csv.reader(log)
   totalRows = len(list(reader))
   print ("Total rows = ",(totalRows))
-  if totalRows >=6 :
+  if totalRows >6 :
+# We have an error so remove Weather_Data5.csv as median calcs rely$
+    os.remove(readings)
+
+  if totalRows ==6 :
 # Get median of last 5 readings via dataMedian function & write to Weather_Data.csv 
     (TempM, HumidityM, HpaM) = dataMedian()
     with open(dataFile, "a+") as log:
       log.write("{0},{1},{2},{3},{4}\n".format(strftime("%Y-%m-%d %H:%M:%S"), TempM, HumidityM, HpaM, epochTime))
 # Delete Weather_Data5.csv
-      os.remove(readings)
+    os.remove(readings)
 
 # Procedure to keep Weather_Data.csv to reasonable size (max & min rows)
 # Count total rows in csv file to see if max size reached
